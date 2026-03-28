@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Savings Squad</title>
+<title>Financial Friends Club</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -78,7 +78,7 @@
 
   <!-- Auth Screen -->
   <div class="screen active" id="screen-auth">
-    <p class="page-title">Savings squad</p>
+    <p class="page-title">Financial Friends Club</p>
     <p class="page-sub">Track savings goals and debt paydown together, anonymously.</p>
     <div class="card">
       <p class="st" id="auth-title">Sign in</p>
@@ -176,8 +176,8 @@
 <script>
 var S = {users:{}, goals:{}, logs:[]};
 var cu = null, authMode = 'login', agId = null, selType = 'savings', editingGoalId = null;
-var GEMS = ['Emerald','Ruby','Sapphire','Onyx','Opal','Topaz','Amber','Garnet','Jade','Pearl','Quartz','Obsidian','Citrine','Diamond','Amethyst'];
-var COLS = ['Red','Blue','Gold','Silver','Crimson','Violet','Teal','Rose','Slate','Ivory','Cobalt','Sage','Coral','Midnight','Bronze'];
+var GEMS = ['Emerald','Ruby','Sapphire','Onyx','Opal','Topaz','Amber','Garnet','Jade','Pearl','Quartz','Obsidian','Citrine','Diamond','Amethyst','Aquamarine','Moonstone','Turquoise'];
+var COLS = ['Red','Blue','Gold','Bronze','Yellow','Grey','Purple','Green','Orange','Pink','Brown'];
 
 function randName() {
   return GEMS[Math.floor(Math.random()*GEMS.length)] + ' ' + COLS[Math.floor(Math.random()*COLS.length)] + ' ' + (Math.floor(Math.random()*9)+1);
