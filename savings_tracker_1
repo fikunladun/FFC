@@ -74,6 +74,7 @@
 </style>
 </head>
 <body>
+<div id="status-bar" style="display:none;position:sticky;top:0;z-index:10;background:#1D9E75;color:#fff;font-size:13px;padding:8px 16px;text-align:center;border-radius:0 0 8px 8px;margin-bottom:8px;"></div>
 <div class="app">
 
   <!-- Auth Screen -->
@@ -173,9 +174,28 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDZbwhVAK563b4BbvyepJYPM2H8gMuBh-8",
+  authDomain: "ffc-3dc79.firebaseapp.com",
+  projectId: "ffc-3dc79",
+  storageBucket: "ffc-3dc79.firebasestorage.app",
+  messagingSenderId: "412105262278",
+  appId: "1:412105262278:web:1c5a2c5659b5e34a20c3c7",
+  measurementId: "G-V4R4YNM21Y"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const STATE_DOC = 'ffc-squad/state';
+
 var S = {users:{}, goals:{}, logs:[]};
 var cu = null, authMode = 'login', agId = null, selType = 'savings', editingGoalId = null;
+var unsubscribe = null;
+
 var GEMS = ['Emerald','Ruby','Sapphire','Onyx','Opal','Topaz','Amber','Garnet','Jade','Pearl','Quartz','Obsidian','Citrine','Diamond','Amethyst'];
 var COLS = ['Red','Blue','Gold','Silver','Crimson','Violet','Teal','Rose','Slate','Ivory','Cobalt','Sage','Coral','Midnight','Bronze'];
 
@@ -190,12 +210,85 @@ function useGenerated() {
   var v = document.getElementById('codename-preview').dataset.val;
   if (v) document.getElementById('auth-codename').value = v;
 }
-function loadState() {
-  try { var r = localStorage.getItem('savings_squad_v4'); if (r) S = JSON.parse(r); } catch(e) {}
+
+async function loadState() {
+  showStatus('Connecting...');
+  try {
+    const ref = doc(db, 'ffc-squad', 'state');
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      var data = snap.data();
+      S.users = data.users || {};
+      S.goals = data.goals || {};
+      S.logs = data.logs || [];
+    }
+    // Also restore local session
+    try {
+      var lcu = localStorage.getItem('ffc_current_user');
+      if (lcu) {
+        var parsed = JSON.parse(lcu);
+        if (S.users[parsed.email]) {
+          cu = S.users[parsed.email];
+          hideStatus();
+          enterApp();
+          startListening();
+          return;
+        }
+      }
+    } catch(e) {}
+    hideStatus();
+  } catch(e) {
+    showStatus('Connection error. Check your internet connection.');
+    console.error(e);
+  }
 }
-function saveState() {
-  try { localStorage.setItem('savings_squad_v4', JSON.stringify(S)); } catch(e) {}
+
+async function saveState() {
+  try {
+    const ref = doc(db, 'ffc-squad', 'state');
+    await setDoc(ref, {
+      users: S.users,
+      goals: S.goals,
+      logs: S.logs
+    });
+  } catch(e) {
+    showStatus('Save failed. Check your connection.');
+    console.error(e);
+  }
 }
+
+function startListening() {
+  if (unsubscribe) unsubscribe();
+  const ref = doc(db, 'ffc-squad', 'state');
+  unsubscribe = onSnapshot(ref, function(snap) {
+    if (snap.exists() && cu) {
+      var data = snap.data();
+      S.users = data.users || {};
+      S.goals = data.goals || {};
+      S.logs = data.logs || [];
+      // Refresh current tab without resetting state
+      var activeTab = document.querySelector('.tab.active');
+      if (activeTab) {
+        var tabId = activeTab.id.replace('tab-','');
+        if (tabId === 'dashboard') rDash();
+        if (tabId === 'leaderboard') rBoard();
+        // mine and log only refresh if not actively editing
+        if (tabId === 'mine' && !editingGoalId && document.getElementById('add-goal-form').style.display === 'none') rMine();
+        if (tabId === 'log' && !agId) rLog();
+      }
+    }
+  });
+}
+
+function showStatus(msg) {
+  var el = document.getElementById('status-bar');
+  if (el) { el.textContent = msg; el.style.display = ''; }
+}
+function hideStatus() {
+  var el = document.getElementById('status-bar');
+  if (el) el.style.display = 'none';
+}
+
 function toggleAuthMode() {
   authMode = authMode === 'login' ? 'signup' : 'login';
   document.getElementById('auth-title').textContent = authMode === 'login' ? 'Sign in' : 'Create account';
@@ -204,11 +297,24 @@ function toggleAuthMode() {
   document.getElementById('auth-error').textContent = '';
   if (authMode === 'signup') generateCodename();
 }
-function handleAuth() {
+async function handleAuth() {
   var email = document.getElementById('auth-email').value.trim().toLowerCase();
   var err = document.getElementById('auth-error');
   err.textContent = '';
   if (!email || email.indexOf('@') < 0) { err.textContent = 'Enter a valid email.'; return; }
+  showStatus('Working...');
+  // Reload latest state before auth to avoid stale data
+  try {
+    const ref = doc(db, 'ffc-squad', 'state');
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      var data = snap.data();
+      S.users = data.users || {};
+      S.goals = data.goals || {};
+      S.logs = data.logs || [];
+    }
+  } catch(e) {}
+  hideStatus();
   if (authMode === 'signup') {
     var cn = document.getElementById('auth-codename').value.trim();
     if (!cn) { err.textContent = 'Choose or generate a codename.'; return; }
@@ -216,12 +322,15 @@ function handleAuth() {
     if (S.users[email]) { err.textContent = 'Account exists. Sign in instead.'; return; }
     var id = 'u_'+Date.now();
     S.users[email] = {id:id, codename:cn, email:email, joined:Date.now()};
-    saveState(); cu = S.users[email];
+    await saveState();
+    cu = S.users[email];
   } else {
     if (!S.users[email]) { err.textContent = 'No account found. Create one first.'; return; }
     cu = S.users[email];
   }
+  try { localStorage.setItem('ffc_current_user', JSON.stringify({email: cu.email})); } catch(e) {}
   enterApp();
+  startListening();
 }
 function enterApp() {
   document.getElementById('screen-auth').classList.remove('active');
@@ -230,7 +339,9 @@ function enterApp() {
   switchTab('dashboard');
 }
 function signOut() {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
   cu = null;
+  try { localStorage.removeItem('ffc_current_user'); } catch(e) {}
   document.getElementById('screen-main').classList.remove('active');
   document.getElementById('screen-auth').classList.add('active');
   document.getElementById('auth-email').value = '';
@@ -357,7 +468,7 @@ function editGoal(id) {
   document.getElementById('add-goal-form').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 function cancelGoalForm() { document.getElementById('add-goal-form').style.display = 'none'; editingGoalId = null; }
-function saveGoal() {
+async function saveGoal() {
   var name=document.getElementById('goal-name').value.trim();
   var target=parseFloat(document.getElementById('goal-target').value);
   var freq=document.getElementById('goal-freq').value;
@@ -373,12 +484,12 @@ function saveGoal() {
     var id='g_'+Date.now();
     S.goals[id]={id:id, name:name, target:target, freq:freq, type:selType, userId:cu.id, created:Date.now()};
   }
-  saveState(); rMine();
+  await saveState(); rMine();
 }
-function deleteGoal(id) {
+async function deleteGoal(id) {
   delete S.goals[id];
   S.logs = S.logs.filter(function(l){ return l.goalId!==id; });
-  saveState(); rMine();
+  await saveState(); rMine();
 }
 function rMine() {
   document.getElementById('add-goal-form').style.display = 'none'; editingGoalId = null;
@@ -391,8 +502,8 @@ function rMine() {
       '<div><div style="font-size:15px;font-weight:500;">'+g.name+'</div>'+
       '<div style="font-size:12px;color:'+lc+';">'+(isSav?'Savings':'Debt paydown')+' - '+g.freq+'</div></div>'+
       '<div style="display:flex;gap:6px;">'+
-      '<button class="btn btn-g btn-sm" onclick="editGoal(\''+g.id+'\')">Edit</button>'+
-      '<button class="btn btn-del btn-sm" onclick="deleteGoal(\''+g.id+'\')">Remove</button></div></div>'+
+      '<button class="btn btn-g btn-sm" onclick="editGoal(''+g.id+'')">Edit</button>'+
+      '<button class="btn btn-del btn-sm" onclick="deleteGoal(''+g.id+'')">Remove</button></div></div>'+
       '<div style="display:flex;gap:16px;font-size:13px;margin-bottom:8px;flex-wrap:wrap;">'+
       '<span style="color:var(--muted);">'+(isSav?'Saved':'Paid off')+': <strong style="color:var(--txt);">$'+p.val.toLocaleString()+'</strong></span>'+
       '<span style="color:var(--muted);">Target: <strong style="color:var(--txt);">$'+g.target.toLocaleString()+'</strong></span>'+
@@ -413,7 +524,7 @@ function rLog() {
   var sav=mg.filter(function(g){ return g.type==='savings'; }), dbt=mg.filter(function(g){ return g.type==='debt'; });
   function lc(g) {
     var p=gProg(g), isSav=g.type==='savings', ic=isSav?'#085041':'#633806';
-    return '<div class="card" style="cursor:pointer" onclick="openLog(\''+g.id+'\',\''+g.name.replace(/'/g,"\\'")+'\',\''+g.type+'\')">'+
+    return '<div class="card" style="cursor:pointer" onclick="openLog(''+g.id+'',''+g.name.replace(/'/g,"\'")+'',''+g.type+'')">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'+
       '<span style="font-size:15px;font-weight:500;">'+g.name+'</span>'+
       '<span style="font-size:13px;color:var(--muted);">'+p.pct+'% - $'+p.val.toLocaleString()+' / $'+g.target.toLocaleString()+'</span></div>'+
@@ -445,8 +556,8 @@ function renderLogHistory(goalId) {
     html += '<div class="log-entry">'+
       '<span style="color:var(--muted);flex:1;">'+new Date(l.ts).toLocaleDateString()+'</span>'+
       '<span id="log-disp-'+l.id+'" style="font-weight:500;min-width:70px;text-align:right;">$'+l.amount.toLocaleString()+'</span>'+
-      '<button class="btn btn-g btn-sm" style="margin-left:8px;" onclick="startEditLog(\''+l.id+'\')">Edit</button>'+
-      '<button class="btn btn-del btn-sm" style="margin-left:4px;" onclick="deleteLog(\''+l.id+'\',\''+goalId+'\')">Del</button>'+
+      '<button class="btn btn-g btn-sm" style="margin-left:8px;" onclick="startEditLog(''+l.id+'')">Edit</button>'+
+      '<button class="btn btn-del btn-sm" style="margin-left:4px;" onclick="deleteLog(''+l.id+'',''+goalId+'')">Del</button>'+
       '</div>';
   });
   html += '</div>';
@@ -460,31 +571,31 @@ function startEditLog(logId) {
   btn.textContent = 'Save';
   btn.onclick = function(){ saveEditLog(logId); };
 }
-function saveEditLog(logId) {
+async function saveEditLog(logId) {
   var inp = document.getElementById('edit-input-'+logId); if (!inp) return;
   var val = parseFloat(inp.value);
   if (!val || val < 0) { inp.style.borderColor='red'; return; }
   var log = S.logs.find(function(l){ return l.id===logId; }); if (!log) return;
   log.amount = val;
-  saveState();
+  await saveState();
   renderLogHistory(agId);
   document.getElementById('log-form-sub').textContent = 'Current total: $'+totalSaved(agId).toLocaleString()+'. Enter the amount to add.';
 }
-function deleteLog(logId, goalId) {
+async function deleteLog(logId, goalId) {
   S.logs = S.logs.filter(function(l){ return l.id!==logId; });
-  saveState();
+  await saveState();
   renderLogHistory(goalId);
   document.getElementById('log-form-sub').textContent = 'Current total: $'+totalSaved(goalId).toLocaleString()+'. Enter the amount to add.';
 }
 function cancelLog() { document.getElementById('log-form-card').style.display='none'; document.getElementById('log-history').innerHTML=''; agId=null; }
-function saveLog() {
+async function saveLog() {
   var amount=parseFloat(document.getElementById('log-amount').value);
   var err=document.getElementById('log-error');
   if (!amount||amount<=0) { err.textContent='Enter a valid amount greater than 0.'; return; }
   if (!agId) return;
   var logId='l_'+Date.now();
   S.logs.push({id:logId, goalId:agId, amount:amount, ts:Date.now(), userId:cu.id});
-  saveState();
+  await saveState();
   document.getElementById('log-amount').value='';
   document.getElementById('log-error').textContent='';
   document.getElementById('log-form-sub').textContent = 'Current total: $'+totalSaved(agId).toLocaleString()+'. Enter the amount to add.';
@@ -492,6 +603,27 @@ function saveLog() {
   rLog();
   if (S.goals[agId]) openLog(agId, S.goals[agId].name, S.goals[agId].type);
 }
+
+// Expose functions needed by inline onclick handlers
+window.toggleAuthMode = toggleAuthMode;
+window.handleAuth = handleAuth;
+window.generateCodename = generateCodename;
+window.useGenerated = useGenerated;
+window.signOut = signOut;
+window.switchTab = switchTab;
+window.selectType = selectType;
+window.showAddGoal = showAddGoal;
+window.editGoal = editGoal;
+window.cancelGoalForm = cancelGoalForm;
+window.saveGoal = saveGoal;
+window.deleteGoal = deleteGoal;
+window.openLog = openLog;
+window.cancelLog = cancelLog;
+window.saveLog = saveLog;
+window.startEditLog = startEditLog;
+window.saveEditLog = saveEditLog;
+window.deleteLog = deleteLog;
+
 loadState();
 </script>
 </body>
