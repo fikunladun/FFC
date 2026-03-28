@@ -1,1 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Savings Squad</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f3; --bg-info: #e6f1fb; --bg-ok: #eaf3de;
+    --txt: #1a1a18; --muted: #6b6b67; --info: #185fa5; --ok: #3b6d11; --danger: #a32d2d;
+    --bdr: rgba(0,0,0,0.12); --bdr2: rgba(0,0,0,0.25); --rmd: 8px; --rlg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #262624; --bg-info: #042c53; --bg-ok: #173404;
+      --txt: #f0efe8; --muted: #9a9990; --info: #85b7eb; --ok: #97c459; --danger: #f09595;
+      --bdr: rgba(255,255,255,0.12); --bdr2: rgba(255,255,255,0.25);
+    }
+  }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--txt); font-size: 16px; line-height: 1.5; padding: 1.5rem 1rem; }
+  .app { max-width: 700px; margin: 0 auto; }
+  .screen { display: none; } .screen.active { display: block; }
+  .page-title { font-size: 22px; font-weight: 500; color: var(--txt); margin-bottom: .25rem; }
+  .page-sub { font-size: 14px; color: var(--muted); margin-bottom: 1.5rem; }
+  .card { background: var(--bg); border: 0.5px solid var(--bdr); border-radius: var(--rlg); padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .fg { margin-bottom: 1rem; }
+  .fg label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .fg input, .fg select { width: 100%; padding: 8px 10px; border-radius: var(--rmd); border: 0.5px solid var(--bdr); background: var(--bg); color: var(--txt); font-size: 14px; font-family: inherit; }
+  .fg input:focus, .fg select:focus { outline: none; border-color: var(--bdr2); }
+  .btn { cursor: pointer; padding: 8px 16px; border-radius: var(--rmd); font-size: 14px; font-weight: 500; font-family: inherit; transition: background .15s, opacity .15s; }
+  .btn-p { background: var(--txt); color: var(--bg); border: none; } .btn-p:hover { opacity: .85; }
+  .btn-g { background: transparent; border: 0.5px solid var(--bdr2); color: var(--txt); } .btn-g:hover { background: var(--bg2); }
+  .btn-sm { font-size: 12px; padding: 4px 10px; }
+  .btn-del { background: transparent; border: 0.5px solid var(--bdr); color: var(--danger); font-family: inherit; cursor: pointer; }
+  .mg { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 1rem; }
+  .mc { background: var(--bg2); border-radius: var(--rmd); padding: 1rem; }
+  .ml { font-size: 12px; color: var(--muted); margin-bottom: 4px; } .mv { font-size: 20px; font-weight: 500; color: var(--txt); }
+  .bb { background: var(--bg2); border-radius: 99px; height: 8px; overflow: hidden; }
+  .bs { height: 100%; border-radius: 99px; background: #1D9E75; transition: width .4s; }
+  .bd { height: 100%; border-radius: 99px; background: #BA7517; transition: width .4s; }
+  .bp { height: 100%; border-radius: 99px; background: #7F77DD; transition: width .4s; }
+  .bl { font-size: 11px; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .mr { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 0.5px solid var(--bdr); }
+  .mr:last-child { border-bottom: none; }
+  .av { width: 36px; height: 36px; border-radius: 50%; background: var(--bg-info); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: var(--info); flex-shrink: 0; margin-top: 2px; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: var(--rmd); margin-left: 6px; }
+  .badge-y { background: var(--bg-ok); color: var(--ok); }
+  .tabs { display: flex; border-bottom: 0.5px solid var(--bdr); margin-bottom: 1.5rem; overflow-x: auto; }
+  .tab { padding: 8px 14px; font-size: 13px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; white-space: nowrap; }
+  .tab.active { color: var(--txt); border-bottom-color: var(--txt); font-weight: 500; }
+  .err { font-size: 13px; color: var(--danger); margin-top: 8px; }
+  .lbtn { background: none; border: none; color: var(--info); font-size: 14px; cursor: pointer; padding: 0; text-decoration: underline; font-family: inherit; }
+  .st { font-size: 16px; font-weight: 500; color: var(--txt); margin-bottom: 1rem; }
+  .empty { text-align: center; padding: 2rem 1rem; color: var(--muted); font-size: 14px; }
+  .nav { display: flex; gap: 8px; margin-bottom: 1.5rem; align-items: center; flex-wrap: wrap; }
+  .nn { flex: 1; font-size: 16px; font-weight: 500; color: var(--txt); }
+  .tt { display: flex; gap: 8px; }
+  .tb { flex: 1; padding: 10px; border-radius: var(--rmd); font-size: 14px; font-weight: 500; font-family: inherit; cursor: pointer; border: 1.5px solid var(--bdr); background: transparent; color: var(--muted); transition: all .15s; }
+  .tb.ss { border-color: #1D9E75; background: #E1F5EE; color: #085041; }
+  .tb.sd { border-color: #BA7517; background: #FAEEDA; color: #633806; }
+  .dv { font-size: 12px; font-weight: 500; color: var(--muted); margin: 1.25rem 0 .75rem; display: flex; align-items: center; gap: 8px; }
+  .dv::after { content: ''; flex: 1; height: .5px; background: var(--bdr); }
+  .rr { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--bdr); }
+  .rr:last-child { border-bottom: none; }
+  .cp { display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 99px; background: var(--bg2); color: var(--muted); margin-top: 8px; cursor: pointer; border: 0.5px solid var(--bdr); }
+  .cp:hover { background: var(--bg); }
+  .gbr { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .gbl { font-size: 13px; color: var(--txt); min-width: 110px; }
+  .gbs { font-size: 11px; color: var(--muted); }
+  .log-entry { display: flex; align-items: center; padding: 7px 0; border-bottom: 0.5px solid var(--bdr); gap: 8px; font-size: 13px; }
+  .log-entry:last-child { border-bottom: none; }
+  .log-edit-input { width: 90px; font-size: 13px; padding: 3px 6px; border-radius: var(--rmd); border: 0.5px solid var(--bdr2); background: var(--bg); color: var(--txt); font-family: inherit; }
+</style>
+</head>
+<body>
+<div class="app">
 
+  <!-- Auth Screen -->
+  <div class="screen active" id="screen-auth">
+    <p class="page-title">Savings squad</p>
+    <p class="page-sub">Track savings goals and debt paydown together, anonymously.</p>
+    <div class="card">
+      <p class="st" id="auth-title">Sign in</p>
+      <div class="fg"><label>Email (private, never shown)</label><input type="email" id="auth-email" placeholder="you@email.com" /></div>
+      <div id="signup-fields" style="display:none">
+        <div class="fg">
+          <label>Your codename (shown to the group)</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="auth-codename" placeholder="e.g. Emerald Red 1" maxlength="32" style="flex:1;" />
+            <button class="btn btn-g btn-sm" onclick="generateCodename()">Generate</button>
+          </div>
+          <span class="cp" id="codename-preview" onclick="useGenerated()"></span>
+        </div>
+      </div>
+      <div id="auth-error" class="err"></div>
+      <div style="display:flex;gap:8px;margin-top:4px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-p" onclick="handleAuth()">Continue</button>
+        <button class="lbtn" id="auth-toggle" onclick="toggleAuthMode()">New? Create account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div class="screen" id="screen-main">
+    <div class="nav">
+      <span class="nn" id="welcome-name"></span>
+      <button class="btn btn-g btn-sm" onclick="signOut()">Sign out</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-dashboard" onclick="switchTab('dashboard')">Group dashboard</button>
+      <button class="tab" id="tab-mine" onclick="switchTab('mine')">My goals</button>
+      <button class="tab" id="tab-log" onclick="switchTab('log')">Log progress</button>
+      <button class="tab" id="tab-leaderboard" onclick="switchTab('leaderboard')">Consistency leaderboard</button>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="tab-content-dashboard">
+      <div class="dv">Group savings progress</div>
+      <div class="mg" id="gms"></div>
+      <div id="ggs"></div>
+      <div class="dv">Group debt paydown progress</div>
+      <div class="mg" id="gmd"></div>
+      <div id="ggd"></div>
+      <div style="margin-top:1.5rem;"><p class="st">Members' progress</p><div class="card" id="members-list"></div></div>
+    </div>
+
+    <!-- My Goals -->
+    <div id="tab-content-mine" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <p class="st" style="margin:0">My goals</p>
+        <button class="btn btn-p" onclick="showAddGoal()">+ Add goal</button>
+      </div>
+      <div id="my-goals-list"></div>
+      <div class="card" id="add-goal-form" style="display:none;">
+        <p class="st" id="goal-form-title">New goal</p>
+        <div class="fg"><label>Goal type</label><div class="tt"><button class="tb ss" id="type-btn-s" onclick="selectType('savings')">Savings</button><button class="tb" id="type-btn-d" onclick="selectType('debt')">Debt paydown</button></div></div>
+        <div class="fg"><label id="gname-lbl">Goal name</label><input type="text" id="goal-name" placeholder="e.g. Emergency fund" /></div>
+        <div class="fg"><label id="gtarget-lbl">Target amount ($)</label><input type="number" id="goal-target" placeholder="5000" min="1" /></div>
+        <div class="fg"><label>Tracking frequency</label><select id="goal-freq"><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></div>
+        <div id="goal-error" class="err"></div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-p" id="goal-save-btn" onclick="saveGoal()">Save goal</button>
+          <button class="btn btn-g" onclick="cancelGoalForm()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Progress -->
+    <div id="tab-content-log" style="display:none">
+      <p class="st">Log your progress</p>
+      <div id="log-goals-list"></div>
+      <div class="card" id="log-form-card" style="display:none;">
+        <p class="st" id="log-form-title">Log progress</p>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:1rem;" id="log-form-sub"></p>
+        <div class="fg"><label id="log-amt-lbl">Amount to add ($)</label><input type="number" id="log-amount" placeholder="e.g. 200" min="0" /></div>
+        <div id="log-error" class="err"></div>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn btn-p" onclick="saveLog()">Add to total</button>
+          <button class="btn btn-g" onclick="cancelLog()">Cancel</button>
+        </div>
+      </div>
+      <div id="log-history"></div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div id="tab-content-leaderboard" style="display:none">
+      <div class="mg" id="streak-metrics"></div>
+      <p class="st" style="margin-top:.5rem;">Consistency rankings</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:1rem;">Ranked by total number of updates logged. Every entry counts equally.</p>
+      <div class="card" id="leaderboard-list"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var S = {users:{}, goals:{}, logs:[]};
+var cu = null, authMode = 'login', agId = null, selType = 'savings', editingGoalId = null;
+var GEMS = ['Emerald','Ruby','Sapphire','Onyx','Opal','Topaz','Amber','Garnet','Jade','Pearl','Quartz','Obsidian','Citrine','Diamond','Amethyst'];
+var COLS = ['Red','Blue','Gold','Silver','Crimson','Violet','Teal','Rose','Slate','Ivory','Cobalt','Sage','Coral','Midnight','Bronze'];
+
+function randName() {
+  return GEMS[Math.floor(Math.random()*GEMS.length)] + ' ' + COLS[Math.floor(Math.random()*COLS.length)] + ' ' + (Math.floor(Math.random()*9)+1);
+}
+function generateCodename() {
+  var n = randName(), el = document.getElementById('codename-preview');
+  el.textContent = n + ' - click to use'; el.dataset.val = n;
+}
+function useGenerated() {
+  var v = document.getElementById('codename-preview').dataset.val;
+  if (v) document.getElementById('auth-codename').value = v;
+}
+function loadState() {
+  try { var r = localStorage.getItem('savings_squad_v4'); if (r) S = JSON.parse(r); } catch(e) {}
+}
+function saveState() {
+  try { localStorage.setItem('savings_squad_v4', JSON.stringify(S)); } catch(e) {}
+}
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  document.getElementById('auth-title').textContent = authMode === 'login' ? 'Sign in' : 'Create account';
+  document.getElementById('auth-toggle').textContent = authMode === 'login' ? 'New? Create account' : 'Already have an account?';
+  document.getElementById('signup-fields').style.display = authMode === 'signup' ? '' : 'none';
+  document.getElementById('auth-error').textContent = '';
+  if (authMode === 'signup') generateCodename();
+}
+function handleAuth() {
+  var email = document.getElementById('auth-email').value.trim().toLowerCase();
+  var err = document.getElementById('auth-error');
+  err.textContent = '';
+  if (!email || email.indexOf('@') < 0) { err.textContent = 'Enter a valid email.'; return; }
+  if (authMode === 'signup') {
+    var cn = document.getElementById('auth-codename').value.trim();
+    if (!cn) { err.textContent = 'Choose or generate a codename.'; return; }
+    if (Object.values(S.users).find(function(u){ return u.codename.toLowerCase()===cn.toLowerCase(); })) { err.textContent = 'That codename is taken. Generate another!'; return; }
+    if (S.users[email]) { err.textContent = 'Account exists. Sign in instead.'; return; }
+    var id = 'u_'+Date.now();
+    S.users[email] = {id:id, codename:cn, email:email, joined:Date.now()};
+    saveState(); cu = S.users[email];
+  } else {
+    if (!S.users[email]) { err.textContent = 'No account found. Create one first.'; return; }
+    cu = S.users[email];
+  }
+  enterApp();
+}
+function enterApp() {
+  document.getElementById('screen-auth').classList.remove('active');
+  document.getElementById('screen-main').classList.add('active');
+  document.getElementById('welcome-name').textContent = cu.codename;
+  switchTab('dashboard');
+}
+function signOut() {
+  cu = null;
+  document.getElementById('screen-main').classList.remove('active');
+  document.getElementById('screen-auth').classList.add('active');
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-codename').value = '';
+}
+function switchTab(tab) {
+  ['dashboard','mine','log','leaderboard'].forEach(function(t) {
+    document.getElementById('tab-content-'+t).style.display = t===tab ? '' : 'none';
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+  });
+  if (tab==='dashboard') rDash();
+  if (tab==='mine') rMine();
+  if (tab==='log') rLog();
+  if (tab==='leaderboard') rBoard();
+}
+function totalSaved(goalId) {
+  return S.logs.filter(function(l){ return l.goalId===goalId; }).reduce(function(s,l){ return s+l.amount; }, 0);
+}
+function gProg(g) {
+  var v = totalSaved(g.id);
+  return {val:v, pct:Math.min(100, Math.round(v/g.target*100))};
+}
+function rDash() {
+  var ag = Object.values(S.goals);
+  var sav = ag.filter(function(g){ return g.type==='savings'; });
+  var dbt = ag.filter(function(g){ return g.type==='debt'; });
+  var ss = sav.reduce(function(s,g){ return s+totalSaved(g.id); }, 0);
+  var st = sav.reduce(function(s,g){ return s+g.target; }, 0), sp = st>0?Math.round(ss/st*100):0;
+  var ds = dbt.reduce(function(s,g){ return s+totalSaved(g.id); }, 0);
+  var dt = dbt.reduce(function(s,g){ return s+g.target; }, 0), dp = dt>0?Math.round(ds/dt*100):0;
+  document.getElementById('gms').innerHTML =
+    '<div class="mc"><div class="ml">Savings goals</div><div class="mv">'+sav.length+'</div></div>'+
+    '<div class="mc"><div class="ml">Group saved</div><div class="mv">$'+ss.toLocaleString()+'</div></div>'+
+    '<div class="mc"><div class="ml">Group target</div><div class="mv">$'+st.toLocaleString()+'</div></div>'+
+    '<div class="mc"><div class="ml">Overall</div><div class="mv">'+sp+'%</div><div class="bb" style="margin-top:8px;"><div class="bs" style="width:'+sp+'%"></div></div></div>';
+  document.getElementById('ggs').innerHTML = sav.length ? sav.map(function(g){
+    var p=gProg(g), ow=Object.values(S.users).find(function(u){ return u.id===g.userId; });
+    return '<div class="gbr"><div class="gbl">'+g.name+'<div class="gbs">'+(ow?ow.codename:'')+'</div></div><div style="flex:1;"><div class="bb"><div class="bs" style="width:'+p.pct+'%"></div></div></div><div style="font-size:13px;font-weight:500;color:#085041;min-width:36px;text-align:right;">'+p.pct+'%</div></div>';
+  }).join('') : '<div class="empty" style="padding:.5rem 0;">No savings goals yet.</div>';
+  document.getElementById('gmd').innerHTML =
+    '<div class="mc"><div class="ml">Debt goals</div><div class="mv">'+dbt.length+'</div></div>'+
+    '<div class="mc"><div class="ml">Group paid off</div><div class="mv">$'+ds.toLocaleString()+'</div></div>'+
+    '<div class="mc"><div class="ml">Total debt</div><div class="mv">$'+dt.toLocaleString()+'</div></div>'+
+    '<div class="mc"><div class="ml">Overall</div><div class="mv">'+dp+'%</div><div class="bb" style="margin-top:8px;"><div class="bd" style="width:'+dp+'%"></div></div></div>';
+  document.getElementById('ggd').innerHTML = dbt.length ? dbt.map(function(g){
+    var p=gProg(g), ow=Object.values(S.users).find(function(u){ return u.id===g.userId; });
+    return '<div class="gbr"><div class="gbl">'+g.name+'<div class="gbs">'+(ow?ow.codename:'')+'</div></div><div style="flex:1;"><div class="bb"><div class="bd" style="width:'+p.pct+'%"></div></div></div><div style="font-size:13px;font-weight:500;color:#633806;min-width:36px;text-align:right;">'+p.pct+'%</div></div>';
+  }).join('') : '<div class="empty" style="padding:.5rem 0;">No debt goals yet.</div>';
+  var au = Object.values(S.users);
+  document.getElementById('members-list').innerHTML = au.length ? au.map(function(u){
+    var ug=ag.filter(function(g){ return g.userId===u.id; });
+    var us=ug.filter(function(g){ return g.type==='savings'; }), ud=ug.filter(function(g){ return g.type==='debt'; });
+    var uss=us.reduce(function(s,g){ return s+totalSaved(g.id); },0), ust=us.reduce(function(s,g){ return s+g.target; },0), usp=ust>0?Math.min(100,Math.round(uss/ust*100)):0;
+    var uds=ud.reduce(function(s,g){ return s+totalSaved(g.id); },0), udt=ud.reduce(function(s,g){ return s+g.target; },0), udp=udt>0?Math.min(100,Math.round(uds/udt*100)):0;
+    var isMe=u.id===cu.id;
+    return '<div class="mr"><div class="av">'+u.codename.slice(0,2).toUpperCase()+'</div><div style="flex:1;min-width:0;">'+
+      '<div style="font-size:14px;font-weight:500;margin-bottom:6px;">'+u.codename+(isMe?'<span class="badge badge-y">you</span>':'')+'</div>'+
+      (us.length?'<div class="bl"><span style="color:#085041;">Savings: $'+uss.toLocaleString()+' / $'+ust.toLocaleString()+'</span><span style="color:#085041;">'+usp+'%</span></div><div class="bb" style="margin-bottom:8px;"><div class="bs" style="width:'+usp+'%"></div></div>':'')+
+      (ud.length?'<div class="bl"><span style="color:#633806;">Debt paid: $'+uds.toLocaleString()+' / $'+udt.toLocaleString()+'</span><span style="color:#633806;">'+udp+'%</span></div><div class="bb"><div class="bd" style="width:'+udp+'%"></div></div>':'')+
+      (!ug.length?'<div style="font-size:12px;color:var(--muted);">No goals yet</div>':'')+
+      '</div></div>';
+  }).join('') : '<div class="empty">No members yet.</div>';
+}
+function rBoard() {
+  var au = Object.values(S.users);
+  var ranked = au.map(function(u){
+    var total=S.logs.filter(function(l){ return l.userId===u.id; }).length;
+    var last=S.logs.filter(function(l){ return l.userId===u.id; }).sort(function(a,b){ return b.ts-a.ts; })[0];
+    return {user:u, total:total, last:last};
+  }).sort(function(a,b){ return b.total-a.total; });
+  var max = ranked.length ? ranked[0].total : 1;
+  document.getElementById('streak-metrics').innerHTML =
+    '<div class="mc"><div class="ml">Total updates</div><div class="mv">'+S.logs.length+'</div></div>'+
+    '<div class="mc"><div class="ml">Members logging</div><div class="mv">'+ranked.filter(function(r){ return r.total>0; }).length+'</div></div>'+
+    '<div class="mc"><div class="ml">Top logger</div><div class="mv" style="font-size:14px;">'+(ranked[0]&&ranked[0].total>0?ranked[0].user.codename:'none yet')+'</div></div>';
+  var medals = ['1st','2nd','3rd'];
+  document.getElementById('leaderboard-list').innerHTML = ranked.length ? ranked.map(function(r,i){
+    var pct=max>0?Math.round(r.total/max*100):0, isMe=r.user.id===cu.id;
+    var lastStr=r.last?new Date(r.last.ts).toLocaleDateString():'No logs yet';
+    var rc=i===0?'#BA7517':i===1?'#5F5E5A':i===2?'#993C1D':'var(--muted)';
+    var rl=i<3?medals[i]:(i+1)+'th';
+    return '<div class="rr"><div style="font-size:15px;font-weight:500;min-width:36px;text-align:center;color:'+rc+'">'+rl+'</div>'+
+      '<div class="av">'+r.user.codename.slice(0,2).toUpperCase()+'</div>'+
+      '<div style="flex:1;min-width:0;"><div style="font-size:14px;font-weight:500;">'+r.user.codename+(isMe?'<span class="badge badge-y">you</span>':'')+'</div>'+
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:5px;">'+r.total+' update'+(r.total!==1?'s':'')+' - last logged '+lastStr+'</div>'+
+      '<div class="bb"><div class="bp" style="width:'+pct+'%"></div></div></div>'+
+      '<div style="font-size:18px;font-weight:500;color:#534AB7;min-width:32px;text-align:right;">'+r.total+'</div></div>';
+  }).join('') : '<div class="empty">No members yet.</div>';
+}
+function selectType(t) {
+  selType = t;
+  document.getElementById('type-btn-s').className = 'tb'+(t==='savings'?' ss':'');
+  document.getElementById('type-btn-d').className = 'tb'+(t==='debt'?' sd':'');
+  document.getElementById('gname-lbl').textContent = t==='savings'?'Goal name':'Debt name';
+  document.getElementById('goal-name').placeholder = t==='savings'?'e.g. Emergency fund':'e.g. Credit card';
+  document.getElementById('gtarget-lbl').textContent = t==='savings'?'Target amount ($)':'Total debt amount ($)';
+  document.getElementById('goal-target').placeholder = t==='savings'?'5000':'8000';
+  document.getElementById('add-goal-form').style.borderColor = t==='savings'?'#1D9E75':'#BA7517';
+}
+function showAddGoal() {
+  editingGoalId = null;
+  selType = 'savings';
+  document.getElementById('goal-form-title').textContent = 'New goal';
+  document.getElementById('goal-save-btn').textContent = 'Save goal';
+  document.getElementById('goal-name').value = '';
+  document.getElementById('goal-target').value = '';
+  document.getElementById('goal-freq').value = 'weekly';
+  document.getElementById('goal-error').textContent = '';
+  document.getElementById('add-goal-form').style.display = '';
+  selectType('savings');
+}
+function editGoal(id) {
+  var g = S.goals[id]; if (!g) return;
+  editingGoalId = id;
+  selType = g.type;
+  document.getElementById('goal-form-title').textContent = 'Edit goal';
+  document.getElementById('goal-save-btn').textContent = 'Update goal';
+  document.getElementById('goal-name').value = g.name;
+  document.getElementById('goal-target').value = g.target;
+  document.getElementById('goal-freq').value = g.freq;
+  document.getElementById('goal-error').textContent = '';
+  document.getElementById('add-goal-form').style.display = '';
+  selectType(g.type);
+  document.getElementById('add-goal-form').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function cancelGoalForm() { document.getElementById('add-goal-form').style.display = 'none'; editingGoalId = null; }
+function saveGoal() {
+  var name=document.getElementById('goal-name').value.trim();
+  var target=parseFloat(document.getElementById('goal-target').value);
+  var freq=document.getElementById('goal-freq').value;
+  var err=document.getElementById('goal-error');
+  if (!name) { err.textContent='Enter a name.'; return; }
+  if (!target||target<=0) { err.textContent='Enter a valid amount.'; return; }
+  if (editingGoalId) {
+    S.goals[editingGoalId].name = name;
+    S.goals[editingGoalId].target = target;
+    S.goals[editingGoalId].freq = freq;
+    S.goals[editingGoalId].type = selType;
+  } else {
+    var id='g_'+Date.now();
+    S.goals[id]={id:id, name:name, target:target, freq:freq, type:selType, userId:cu.id, created:Date.now()};
+  }
+  saveState(); rMine();
+}
+function deleteGoal(id) {
+  delete S.goals[id];
+  S.logs = S.logs.filter(function(l){ return l.goalId!==id; });
+  saveState(); rMine();
+}
+function rMine() {
+  document.getElementById('add-goal-form').style.display = 'none'; editingGoalId = null;
+  var mg=Object.values(S.goals).filter(function(g){ return g.userId===cu.id; });
+  var sav=mg.filter(function(g){ return g.type==='savings'; }), dbt=mg.filter(function(g){ return g.type==='debt'; });
+  function gc(g) {
+    var p=gProg(g), isSav=g.type==='savings', ac=isSav?'#1D9E75':'#BA7517', lc=isSav?'#085041':'#633806';
+    return '<div class="card" style="border-left:3px solid '+ac+';">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">'+
+      '<div><div style="font-size:15px;font-weight:500;">'+g.name+'</div>'+
+      '<div style="font-size:12px;color:'+lc+';">'+(isSav?'Savings':'Debt paydown')+' - '+g.freq+'</div></div>'+
+      '<div style="display:flex;gap:6px;">'+
+      '<button class="btn btn-g btn-sm" onclick="editGoal(\''+g.id+'\')">Edit</button>'+
+      '<button class="btn btn-del btn-sm" onclick="deleteGoal(\''+g.id+'\')">Remove</button></div></div>'+
+      '<div style="display:flex;gap:16px;font-size:13px;margin-bottom:8px;flex-wrap:wrap;">'+
+      '<span style="color:var(--muted);">'+(isSav?'Saved':'Paid off')+': <strong style="color:var(--txt);">$'+p.val.toLocaleString()+'</strong></span>'+
+      '<span style="color:var(--muted);">Target: <strong style="color:var(--txt);">$'+g.target.toLocaleString()+'</strong></span>'+
+      '<span style="color:var(--muted);">Progress: <strong style="color:var(--txt);">'+p.pct+'%</strong></span></div>'+
+      '<div class="bb"><div class="'+(isSav?'bs':'bd')+'" style="width:'+p.pct+'%"></div></div></div>';
+  }
+  var html='';
+  if (!mg.length) html='<div class="empty">No goals yet. Add one to get started!</div>';
+  if (sav.length) { html+='<div class="dv">Savings</div>'; sav.forEach(function(g){ html+=gc(g); }); }
+  if (dbt.length) { html+='<div class="dv">Debt paydown</div>'; dbt.forEach(function(g){ html+=gc(g); }); }
+  document.getElementById('my-goals-list').innerHTML = html;
+}
+function rLog() {
+  var mg=Object.values(S.goals).filter(function(g){ return g.userId===cu.id; });
+  document.getElementById('log-form-card').style.display='none';
+  document.getElementById('log-history').innerHTML=''; agId=null;
+  if (!mg.length) { document.getElementById('log-goals-list').innerHTML='<div class="empty">Add a goal first before logging progress.</div>'; return; }
+  var sav=mg.filter(function(g){ return g.type==='savings'; }), dbt=mg.filter(function(g){ return g.type==='debt'; });
+  function lc(g) {
+    var p=gProg(g), isSav=g.type==='savings', ic=isSav?'#085041':'#633806';
+    return '<div class="card" style="cursor:pointer" onclick="openLog(\''+g.id+'\',\''+g.name.replace(/'/g,"\\'")+'\',\''+g.type+'\')">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">'+
+      '<span style="font-size:15px;font-weight:500;">'+g.name+'</span>'+
+      '<span style="font-size:13px;color:var(--muted);">'+p.pct+'% - $'+p.val.toLocaleString()+' / $'+g.target.toLocaleString()+'</span></div>'+
+      '<div class="bb"><div class="'+(isSav?'bs':'bd')+'" style="width:'+p.pct+'%"></div></div>'+
+      '<div style="font-size:12px;color:'+ic+';margin-top:8px;">Tap to log more progress</div></div>';
+  }
+  var html='';
+  if (sav.length) { html+='<div class="dv">Savings</div>'; sav.forEach(function(g){ html+=lc(g); }); }
+  if (dbt.length) { html+='<div class="dv">Debt paydown</div>'; dbt.forEach(function(g){ html+=lc(g); }); }
+  document.getElementById('log-goals-list').innerHTML = html;
+}
+function openLog(goalId, goalName, type) {
+  agId=goalId; var isSav=type.trim()==='savings';
+  document.getElementById('log-form-title').textContent = 'Log: '+goalName;
+  document.getElementById('log-form-sub').textContent = 'Current total: $'+totalSaved(goalId).toLocaleString()+'. Enter the amount to add.';
+  document.getElementById('log-amt-lbl').textContent = isSav?'Amount saved this time ($)':'Amount paid off this time ($)';
+  document.getElementById('log-amount').placeholder = 'e.g. 200';
+  var fc=document.getElementById('log-form-card');
+  fc.style.borderColor=isSav?'#1D9E75':'#BA7517'; fc.style.borderWidth='1.5px';
+  document.getElementById('log-amount').value=''; document.getElementById('log-error').textContent='';
+  fc.style.display='';
+  renderLogHistory(goalId);
+}
+function renderLogHistory(goalId) {
+  var logs=S.logs.filter(function(l){ return l.goalId===goalId; }).sort(function(a,b){ return b.ts-a.ts; });
+  if (!logs.length) { document.getElementById('log-history').innerHTML=''; return; }
+  var html='<p class="st" style="margin-top:1.5rem;">Entry history</p><div class="card">';
+  logs.forEach(function(l) {
+    html += '<div class="log-entry">'+
+      '<span style="color:var(--muted);flex:1;">'+new Date(l.ts).toLocaleDateString()+'</span>'+
+      '<span id="log-disp-'+l.id+'" style="font-weight:500;min-width:70px;text-align:right;">$'+l.amount.toLocaleString()+'</span>'+
+      '<button class="btn btn-g btn-sm" style="margin-left:8px;" onclick="startEditLog(\''+l.id+'\')">Edit</button>'+
+      '<button class="btn btn-del btn-sm" style="margin-left:4px;" onclick="deleteLog(\''+l.id+'\',\''+goalId+'\')">Del</button>'+
+      '</div>';
+  });
+  html += '</div>';
+  document.getElementById('log-history').innerHTML = html;
+}
+function startEditLog(logId) {
+  var log = S.logs.find(function(l){ return l.id===logId; }); if (!log) return;
+  var disp = document.getElementById('log-disp-'+logId); if (!disp) return;
+  disp.innerHTML = '<input class="log-edit-input" id="edit-input-'+logId+'" type="number" value="'+log.amount+'" min="0" />';
+  var btn = disp.nextElementSibling;
+  btn.textContent = 'Save';
+  btn.onclick = function(){ saveEditLog(logId); };
+}
+function saveEditLog(logId) {
+  var inp = document.getElementById('edit-input-'+logId); if (!inp) return;
+  var val = parseFloat(inp.value);
+  if (!val || val < 0) { inp.style.borderColor='red'; return; }
+  var log = S.logs.find(function(l){ return l.id===logId; }); if (!log) return;
+  log.amount = val;
+  saveState();
+  renderLogHistory(agId);
+  document.getElementById('log-form-sub').textContent = 'Current total: $'+totalSaved(agId).toLocaleString()+'. Enter the amount to add.';
+}
+function deleteLog(logId, goalId) {
+  S.logs = S.logs.filter(function(l){ return l.id!==logId; });
+  saveState();
+  renderLogHistory(goalId);
+  document.getElementById('log-form-sub').textContent = 'Current total: $'+totalSaved(goalId).toLocaleString()+'. Enter the amount to add.';
+}
+function cancelLog() { document.getElementById('log-form-card').style.display='none'; document.getElementById('log-history').innerHTML=''; agId=null; }
+function saveLog() {
+  var amount=parseFloat(document.getElementById('log-amount').value);
+  var err=document.getElementById('log-error');
+  if (!amount||amount<=0) { err.textContent='Enter a valid amount greater than 0.'; return; }
+  if (!agId) return;
+  var logId='l_'+Date.now();
+  S.logs.push({id:logId, goalId:agId, amount:amount, ts:Date.now(), userId:cu.id});
+  saveState();
+  document.getElementById('log-amount').value='';
+  document.getElementById('log-error').textContent='';
+  document.getElementById('log-form-sub').textContent = 'Current total: $'+totalSaved(agId).toLocaleString()+'. Enter the amount to add.';
+  renderLogHistory(agId);
+  rLog();
+  if (S.goals[agId]) openLog(agId, S.goals[agId].name, S.goals[agId].type);
+}
+loadState();
+</script>
+</body>
+</html>
